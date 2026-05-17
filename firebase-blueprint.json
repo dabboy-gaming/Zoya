@@ -1,0 +1,41 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores user preferences and metadata.",
+      "type": "object",
+      "properties": {
+        "preferences": {
+          "type": "object",
+          "properties": {
+            "isMuted": { "type": "boolean" },
+            "theme": { "type": "string" },
+            "creatorName": { "type": "string" }
+          }
+        },
+        "lastSeen": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A single message in the chat history.",
+      "type": "object",
+      "properties": {
+        "sender": { "type": "string", "enum": ["user", "zoya"] },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["sender", "text", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile data."
+    },
+    "/users/{userId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Chat message history for a user."
+    }
+  }
+}

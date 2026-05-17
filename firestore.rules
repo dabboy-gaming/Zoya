@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitive Helpers
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // Validation Blueprints
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['preferences', 'lastSeen'])
+        && data.preferences is map
+        && data.preferences.get('isMuted', false) is bool
+        && (data.preferences.get('creatorName', '') is string && data.preferences.get('creatorName', '').size() <= 100)
+        && data.lastSeen is timestamp;
+    }
+
+    function isValidMessage(data) {
+      return data.keys().hasAll(['sender', 'text', 'timestamp'])
+        && data.keys().size() == 3
+        && data.sender in ['user', 'zoya']
+        && data.text is string && data.text.size() <= 10000
+        && data.timestamp == request.time;
+    }
+
+    // 1. User Profiles
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUserProfile(incoming()) && incoming().lastSeen == request.time;
+      allow update: if isOwner(userId) && isValidUserProfile(incoming()) && incoming().lastSeen == request.time;
+
+      // 2. Messages Subcollection
+      match /messages/{messageId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidMessage(incoming());
+        allow update: if false;
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}
